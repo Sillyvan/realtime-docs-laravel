@@ -1,8 +1,8 @@
 packages:
-  - '.'
+    - '.'
 
 allowBuilds:
-  unrs-resolver: true
+    unrs-resolver: true
 
 publicHoistPattern:
-  - '@inertiajs/core'
+    - '@inertiajs/core'
