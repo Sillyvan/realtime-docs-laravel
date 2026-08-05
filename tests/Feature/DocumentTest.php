@@ -6,6 +6,7 @@ use App\Models\DocumentMembership;
 use App\Models\Folder;
 use App\Models\User;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
 
 test('a document gets a uuid on create while keeping an incrementing id', function () {
     $document = Document::factory()->create();
@@ -168,4 +169,195 @@ test('the folder policy is owner only', function () {
         ->and($stranger->can('view', $folder))->toBeFalse()
         ->and($stranger->can('update', $folder))->toBeFalse()
         ->and($stranger->can('delete', $folder))->toBeFalse();
+});
+
+test('guests cannot reach documents', function () {
+    $this->get(route('documents.index'))->assertRedirect(route('login'));
+});
+
+test('a user can create an empty document and lands on it', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->post(route('documents.store'));
+
+    $document = Document::sole();
+
+    expect($document->owner_id)->toBe($user->id)
+        ->and($document->title)->toBe('Untitled document');
+
+    $response->assertRedirect(route('documents.show', $document));
+});
+
+test('the index lists documents the user owns or shares, and nothing else', function () {
+    $user = User::factory()->create();
+    $owned = Document::factory()->create([
+        'owner_id' => $user->id,
+        'title' => 'Mine',
+        'updated_at' => now()->subHour(),
+    ]);
+    $shared = Document::factory()->create(['title' => 'Shared']);
+    Document::factory()->create(['title' => 'Someone elses']);
+
+    DocumentMembership::factory()->accepted()->create([
+        'document_id' => $shared->id,
+        'user_id' => $user->id,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('documents.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('documents/index')
+            ->has('documents', 2)
+            ->where('documents.0.title', 'Shared')
+            ->where('documents.0.is_owner', false)
+            ->where('documents.0.role', 'viewer')
+            ->where('documents.1.title', 'Mine')
+            ->where('documents.1.is_owner', true)
+        );
+
+    expect($owned->fresh())->not->toBeNull();
+});
+
+test('the owner can open a document with edit permissions', function () {
+    $document = Document::factory()->create(['content_html' => '<p>Hello</p>']);
+
+    $this->actingAs($document->owner)
+        ->get(route('documents.show', $document))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('documents/show')
+            ->where('document.uuid', $document->uuid)
+            ->where('document.content_html', '<p>Hello</p>')
+            ->where('can.update', true)
+            ->where('can.delete', true)
+        );
+});
+
+test('a viewer opens a document read only', function () {
+    $document = Document::factory()->create();
+    $viewer = User::factory()->create();
+
+    DocumentMembership::factory()->accepted()->viewer()->create([
+        'document_id' => $document->id,
+        'user_id' => $viewer->id,
+    ]);
+
+    $this->actingAs($viewer)
+        ->get(route('documents.show', $document))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('can.update', false)
+            ->where('can.delete', false)
+        );
+});
+
+test('a non member cannot open a document', function () {
+    $document = Document::factory()->create();
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('documents.show', $document))
+        ->assertForbidden();
+});
+
+test('an unknown uuid is a 404', function () {
+    $this->actingAs(User::factory()->create())
+        ->get(route('documents.show', 'not-a-uuid'))
+        ->assertNotFound();
+});
+
+test('the owner can rename a document', function () {
+    $document = Document::factory()->create();
+
+    $this->actingAs($document->owner)
+        ->from(route('documents.show', $document))
+        ->patch(route('documents.update', $document), ['title' => 'Roadmap'])
+        ->assertRedirect(route('documents.show', $document));
+
+    expect($document->fresh()->title)->toBe('Roadmap');
+});
+
+test('renaming requires a title', function () {
+    $document = Document::factory()->create();
+
+    $this->actingAs($document->owner)
+        ->from(route('documents.show', $document))
+        ->patch(route('documents.update', $document), ['title' => ''])
+        ->assertSessionHasErrors('title');
+});
+
+test('a viewer cannot rename a document', function () {
+    $document = Document::factory()->create();
+    $viewer = User::factory()->create();
+
+    DocumentMembership::factory()->accepted()->viewer()->create([
+        'document_id' => $document->id,
+        'user_id' => $viewer->id,
+    ]);
+
+    $this->actingAs($viewer)
+        ->patch(route('documents.update', $document), ['title' => 'Nope'])
+        ->assertForbidden();
+
+    expect($document->fresh()->title)->not->toBe('Nope');
+});
+
+test('autosave persists the html and text snapshot', function () {
+    $document = Document::factory()->create();
+
+    $this->actingAs($document->owner)
+        ->put(route('documents.content.update', $document), [
+            'content_html' => '<p>Typed live</p>',
+            'content_text' => 'Typed live',
+        ])
+        ->assertNoContent();
+
+    expect($document->fresh())
+        ->content_html->toBe('<p>Typed live</p>')
+        ->content_text->toBe('Typed live');
+});
+
+test('an editor can autosave but a viewer cannot', function () {
+    $document = Document::factory()->create();
+    $editor = User::factory()->create();
+    $viewer = User::factory()->create();
+
+    DocumentMembership::factory()->accepted()->editor()->create([
+        'document_id' => $document->id,
+        'user_id' => $editor->id,
+    ]);
+    DocumentMembership::factory()->accepted()->viewer()->create([
+        'document_id' => $document->id,
+        'user_id' => $viewer->id,
+    ]);
+
+    $payload = ['content_html' => '<p>Edit</p>', 'content_text' => 'Edit'];
+
+    $this->actingAs($editor)
+        ->put(route('documents.content.update', $document), $payload)
+        ->assertNoContent();
+
+    $this->actingAs($viewer)
+        ->put(route('documents.content.update', $document), $payload)
+        ->assertForbidden();
+});
+
+test('the owner can delete a document and a member cannot', function () {
+    $document = Document::factory()->create();
+    $editor = User::factory()->create();
+
+    DocumentMembership::factory()->accepted()->editor()->create([
+        'document_id' => $document->id,
+        'user_id' => $editor->id,
+    ]);
+
+    $this->actingAs($editor)
+        ->delete(route('documents.destroy', $document))
+        ->assertForbidden();
+
+    $this->actingAs($document->owner)
+        ->delete(route('documents.destroy', $document))
+        ->assertRedirect(route('documents.index'));
+
+    expect(Document::count())->toBe(0);
 });

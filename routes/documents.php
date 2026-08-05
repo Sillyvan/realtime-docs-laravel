@@ -1,0 +1,13 @@
+<?php
+
+use App\Http\Controllers\DocumentContentController;
+use App\Http\Controllers\DocumentController;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::resource('documents', DocumentController::class)->except(['create', 'edit']);
+
+    Route::put('documents/{document}/content', [DocumentContentController::class, 'update'])
+        ->middleware('throttle:120,1')
+        ->name('documents.content.update');
+});

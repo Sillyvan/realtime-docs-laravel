@@ -12,7 +12,7 @@ class DocumentUpdateRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return $this->user()->can('update', $this->route('document'));
     }
 
     /**
@@ -23,7 +23,7 @@ class DocumentUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'title' => ['required', 'string', 'max:255'],
         ];
     }
 }
