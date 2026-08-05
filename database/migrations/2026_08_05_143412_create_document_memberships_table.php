@@ -13,7 +13,16 @@ return new class extends Migration
     {
         Schema::create('document_memberships', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('document_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('invited_by_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('role');
+            $table->string('status');
+            $table->timestamp('responded_at')->nullable();
             $table->timestamps();
+
+            $table->unique(['document_id', 'user_id']);
+            $table->index(['user_id', 'status']);
         });
     }
 

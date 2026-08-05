@@ -13,6 +13,13 @@ return new class extends Migration
     {
         Schema::create('documents', function (Blueprint $table) {
             $table->id();
+            $table->uuid()->unique();
+            $table->foreignId('owner_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('folder_id')->nullable()->constrained()->nullOnDelete();
+            $table->string('title')->default('Untitled document')->index();
+            $table->binary('state')->nullable();
+            $table->longText('content_html')->nullable();
+            $table->longText('content_text')->nullable();
             $table->timestamps();
         });
     }

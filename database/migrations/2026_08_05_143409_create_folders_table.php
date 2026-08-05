@@ -13,7 +13,12 @@ return new class extends Migration
     {
         Schema::create('folders', function (Blueprint $table) {
             $table->id();
+            $table->uuid()->unique();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->string('name');
             $table->timestamps();
+
+            $table->unique(['user_id', 'name']);
         });
     }
 
