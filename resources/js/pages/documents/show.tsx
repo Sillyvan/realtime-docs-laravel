@@ -4,6 +4,7 @@ import DocumentController from '@/actions/App/Http/Controllers/DocumentControlle
 import { DocumentEditor } from '@/components/documents/document-editor';
 import { DocumentTitle } from '@/components/documents/document-title';
 import { EditorStatus } from '@/components/documents/editor-status';
+import { MoveToFolder } from '@/components/documents/move-to-folder';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -16,13 +17,15 @@ import {
 } from '@/components/ui/dialog';
 import { useDocumentAutosave } from '@/hooks/use-document-autosave';
 import { index, show } from '@/routes/documents';
-import type { DocumentPermissions, DocumentResource } from '@/types';
+import type { DocumentPermissions, DocumentResource, Folder } from '@/types';
 
 export default function DocumentShow({
     document: doc,
+    folders,
     can,
 }: {
     document: DocumentResource;
+    folders: Folder[];
     can: DocumentPermissions;
 }) {
     const { status, save } = useDocumentAutosave(doc.uuid);
@@ -47,6 +50,15 @@ export default function DocumentShow({
                             editable={can.update}
                         />
                     </div>
+
+                    {can.file && (
+                        <MoveToFolder
+                            uuid={doc.uuid}
+                            folder={doc.folder}
+                            folders={folders}
+                            className="hidden shrink-0 sm:flex"
+                        />
+                    )}
 
                     <EditorStatus
                         status={status}

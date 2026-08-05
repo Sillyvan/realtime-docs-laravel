@@ -2,64 +2,48 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Documents\FolderRequest;
 use App\Models\Folder;
-use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
 
 class FolderController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Create a folder for the authenticated user.
      */
-    public function index()
+    public function store(FolderRequest $request): RedirectResponse
     {
-        //
+        $folder = $request->user()->folders()->create($request->validated());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Folder created.')]);
+
+        return to_route('documents.index', ['folder' => $folder->uuid]);
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Rename a folder.
      */
-    public function create()
+    public function update(FolderRequest $request, Folder $folder): RedirectResponse
     {
-        //
+        $folder->update($request->validated());
+
+        return back();
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Delete a folder, leaving its documents at the root.
      */
-    public function store(Request $request)
+    public function destroy(Folder $folder): RedirectResponse
     {
-        //
-    }
+        Gate::authorize('delete', $folder);
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Folder $folder)
-    {
-        //
-    }
+        $folder->delete();
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Folder $folder)
-    {
-        //
-    }
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Folder deleted.')]);
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Folder $folder)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Folder $folder)
-    {
-        //
+        // The deleted folder can't stay in the query string as a filter.
+        return to_route('documents.index');
     }
 }

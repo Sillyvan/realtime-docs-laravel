@@ -208,12 +208,13 @@ test('the index lists documents the user owns or shares, and nothing else', func
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('documents/index')
-            ->has('documents', 2)
-            ->where('documents.0.title', 'Shared')
-            ->where('documents.0.is_owner', false)
-            ->where('documents.0.role', 'viewer')
-            ->where('documents.1.title', 'Mine')
-            ->where('documents.1.is_owner', true)
+            ->has('documents.data', 2)
+            ->where('documents.total', 2)
+            ->where('documents.data.0.title', 'Shared')
+            ->where('documents.data.0.is_owner', false)
+            ->where('documents.data.0.role', 'viewer')
+            ->where('documents.data.1.title', 'Mine')
+            ->where('documents.data.1.is_owner', true)
         );
 
     expect($owned->fresh())->not->toBeNull();

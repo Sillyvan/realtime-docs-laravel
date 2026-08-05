@@ -1,17 +1,37 @@
 import { Form, Head } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import DocumentController from '@/actions/App/Http/Controllers/DocumentController';
+import { DocumentFilters } from '@/components/documents/document-filters';
 import { DocumentList } from '@/components/documents/document-list';
+import { DocumentPagination } from '@/components/documents/document-pagination';
+import { FolderRail } from '@/components/documents/folder-rail';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
+import { useDocumentFilters } from '@/hooks/use-document-filters';
 import { index } from '@/routes/documents';
-import type { DocumentListItem } from '@/types';
+import type {
+    DocumentFilters as Filters,
+    DocumentListItem,
+    Folder,
+    Paginated,
+} from '@/types';
 
 export default function DocumentsIndex({
     documents,
+    folders,
+    filters,
 }: {
-    documents: DocumentListItem[];
+    documents: Paginated<DocumentListItem>;
+    folders: Folder[];
+    filters: Filters;
 }) {
+    const { search, setSearch, apply, reloading } = useDocumentFilters(filters);
+
+    const filtered =
+        filters.scope !== 'all' ||
+        filters.folder !== null ||
+        (filters.q ?? '') !== '';
+
     return (
         <>
             <Head title="Documents" />
@@ -33,7 +53,31 @@ export default function DocumentsIndex({
                     </Form>
                 </div>
 
-                <DocumentList documents={documents} />
+                <div className="flex flex-col gap-6 sm:flex-row">
+                    <FolderRail
+                        folders={folders}
+                        filters={filters}
+                        onSelect={(folder) => apply({ folder })}
+                    />
+
+                    <div className="flex min-w-0 flex-1 flex-col gap-4">
+                        <DocumentFilters
+                            filters={filters}
+                            search={search}
+                            onSearch={setSearch}
+                            onApply={apply}
+                        />
+
+                        <DocumentList
+                            documents={documents.data}
+                            folders={folders}
+                            filtered={filtered}
+                            loading={reloading}
+                        />
+
+                        <DocumentPagination page={documents} />
+                    </div>
+                </div>
             </div>
         </>
     );

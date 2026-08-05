@@ -1,11 +1,12 @@
 ---
 paths:
-  - vite.config.ts
+    - vite.config.ts
 ---
 
 # General
 
 ## No Babel in the Vite build; React Compiler is deliberately off
+
 The build is Babel-free. `@vitejs/plugin-react` v6 uses oxc for JSX + Fast Refresh; do not reintroduce a `babel` option (v6 removed it — React Compiler there needs `@rolldown/plugin-babel` + `reactCompilerPreset`).
 
 `babel-plugin-react-compiler` was removed on purpose: its memoization is not worth pulling Babel back in. oxlint's experimental `react/react-compiler` rule is enabled instead, so the codebase stays compiler-clean and it can be re-adopted cheaply.
