@@ -22,7 +22,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['role', 'status', 'invited_by_id', 'responded_at'])]
+#[Fillable(['user_id', 'role', 'status', 'invited_by_id', 'responded_at'])]
 class DocumentMembership extends Model
 {
     /** @use HasFactory<DocumentMembershipFactory> */

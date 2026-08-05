@@ -1,5 +1,7 @@
 export type DocumentRole = 'viewer' | 'editor';
 
+export type MembershipStatus = 'pending' | 'accepted' | 'declined';
+
 export type FolderRef = {
     uuid: string;
     name: string;
@@ -17,6 +19,7 @@ export type DocumentListItem = {
     owner: { name: string };
     is_owner: boolean;
     role: DocumentRole | null;
+    shared_with_count: number;
     folder: FolderRef | null;
 };
 
@@ -28,10 +31,21 @@ export type DocumentResource = {
     folder: FolderRef | null;
 };
 
+/** A person on a document — the owner has no membership row, hence `id: null`. */
+export type DocumentMember = {
+    id: number | null;
+    name: string;
+    email: string | null;
+    role: DocumentRole;
+    status: MembershipStatus;
+    is_you: boolean;
+};
+
 export type DocumentPermissions = {
     update: boolean;
     delete: boolean;
     file: boolean;
+    manageMembers: boolean;
 };
 
 export type DocumentContent = {

@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\DocumentRole;
+use App\Enums\MembershipStatus;
 use App\Http\Requests\Documents\DocumentIndexRequest;
 use App\Http\Requests\Documents\DocumentUpdateRequest;
 use App\Models\Document;
+use App\Models\DocumentMembership;
 use App\Models\Folder;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -53,6 +57,7 @@ class DocumentController extends Controller
 
         $user = $request->user();
         $canFile = $user->can('file', $document);
+        $canManageMembers = $user->can('manageMembers', $document);
 
         return Inertia::render('documents/show', [
             'document' => [
@@ -62,11 +67,13 @@ class DocumentController extends Controller
                 'updated_at_for_humans' => $document->updated_at?->diffForHumans(),
                 'folder' => $this->toFolderRef($document),
             ],
+            'members' => fn (): Collection => $this->membersFor($document, $user, $canManageMembers),
             'folders' => fn (): Collection => $canFile ? $this->foldersFor($user) : collect(),
             'can' => [
                 'update' => $user->can('update', $document),
                 'delete' => $user->can('delete', $document),
                 'file' => $canFile,
+                'manageMembers' => $canManageMembers,
             ],
         ]);
     }
@@ -119,11 +126,61 @@ class DocumentController extends Controller
                 'folder:id,uuid,name',
                 'memberships' => fn (Relation $memberships) => $memberships->where('user_id', $user->id),
             ])
+            ->withCount([
+                'memberships as shared_with_count' => fn (Builder $memberships) => $memberships
+                    ->where('status', MembershipStatus::Accepted),
+            ])
             ->orderBy($filters['sort'], $filters['direction'])
             ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString()
             ->through(fn (Document $document): array => $this->toListItem($document, $user));
+    }
+
+    /**
+     * The people on the document: the owner first, then the membership rows.
+     *
+     * Only someone who can manage members sees email addresses, and the invitations
+     * that are still pending or were declined.
+     *
+     * @return Collection<int, array{id: int|null, name: string, email: string|null, role: string, status: string, is_you: bool}>
+     */
+    private function membersFor(Document $document, User $user, bool $manages): Collection
+    {
+        $owner = $document->owner;
+
+        return $document->memberships()
+            ->with('user:id,name,email')
+            ->unless($manages, fn (Builder $memberships) => $memberships->where('status', MembershipStatus::Accepted))
+            ->oldest('id')
+            ->get()
+            ->map(fn (DocumentMembership $membership): array => $this->toMemberRow($membership, $user, $manages))
+            ->prepend([
+                'id' => null,
+                'name' => $owner->name,
+                'email' => $manages ? $owner->email : null,
+                'role' => DocumentRole::Editor->value,
+                'status' => MembershipStatus::Accepted->value,
+                'is_you' => $owner->id === $user->id,
+            ])
+            ->values();
+    }
+
+    /**
+     * Shape a membership for the share dialog.
+     *
+     * @return array{id: int|null, name: string, email: string|null, role: string, status: string, is_you: bool}
+     */
+    private function toMemberRow(DocumentMembership $membership, User $user, bool $manages): array
+    {
+        return [
+            'id' => $membership->id,
+            'name' => $membership->user->name,
+            'email' => $manages ? $membership->user->email : null,
+            'role' => $membership->role->value,
+            'status' => $membership->status->value,
+            'is_you' => $membership->user_id === $user->id,
+        ];
     }
 
     /**
@@ -147,7 +204,7 @@ class DocumentController extends Controller
     /**
      * Shape a document for the index list.
      *
-     * @return array{uuid: string, title: string, excerpt: string, updated_at_for_humans: string|null, owner: array{name: string}, is_owner: bool, role: string|null, folder: array{uuid: string, name: string}|null}
+     * @return array{uuid: string, title: string, excerpt: string, updated_at_for_humans: string|null, owner: array{name: string}, is_owner: bool, role: string|null, shared_with_count: int, folder: array{uuid: string, name: string}|null}
      */
     private function toListItem(Document $document, User $user): array
     {
@@ -159,6 +216,7 @@ class DocumentController extends Controller
             'owner' => ['name' => $document->owner->name],
             'is_owner' => $document->owner_id === $user->id,
             'role' => $document->roleFor($user)?->value,
+            'shared_with_count' => (int) $document->shared_with_count,
             'folder' => $this->toFolderRef($document),
         ];
     }

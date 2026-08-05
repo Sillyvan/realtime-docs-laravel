@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Documents;
 
+use App\Enums\DocumentRole;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class MemberRoleUpdateRequest extends FormRequest
 {
@@ -12,7 +14,7 @@ class MemberRoleUpdateRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return $this->user()->can('manageMembers', $this->route('document'));
     }
 
     /**
@@ -23,7 +25,7 @@ class MemberRoleUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'role' => ['required', Rule::enum(DocumentRole::class)],
         ];
     }
 }

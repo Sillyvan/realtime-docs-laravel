@@ -63,6 +63,9 @@ export function DocumentList({
                             {document.is_owner ? 'You' : document.owner.name}
                             {document.updated_at_for_humans &&
                                 ` · edited ${document.updated_at_for_humans}`}
+                            {document.is_owner &&
+                                document.shared_with_count > 0 &&
+                                ` · shared with ${document.shared_with_count}`}
                         </p>
                     </Link>
 

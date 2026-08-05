@@ -5,6 +5,7 @@ import { DocumentEditor } from '@/components/documents/document-editor';
 import { DocumentTitle } from '@/components/documents/document-title';
 import { EditorStatus } from '@/components/documents/editor-status';
 import { MoveToFolder } from '@/components/documents/move-to-folder';
+import { ShareDialog } from '@/components/documents/share-dialog';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -17,14 +18,21 @@ import {
 } from '@/components/ui/dialog';
 import { useDocumentAutosave } from '@/hooks/use-document-autosave';
 import { index, show } from '@/routes/documents';
-import type { DocumentPermissions, DocumentResource, Folder } from '@/types';
+import type {
+    DocumentMember,
+    DocumentPermissions,
+    DocumentResource,
+    Folder,
+} from '@/types';
 
 export default function DocumentShow({
     document: doc,
+    members,
     folders,
     can,
 }: {
     document: DocumentResource;
+    members: DocumentMember[];
     folders: Folder[];
     can: DocumentPermissions;
 }) {
@@ -63,6 +71,13 @@ export default function DocumentShow({
                     <EditorStatus
                         status={status}
                         lastEdited={doc.updated_at_for_humans}
+                    />
+
+                    <ShareDialog
+                        uuid={doc.uuid}
+                        title={doc.title}
+                        members={members}
+                        canManage={can.manageMembers}
                     />
 
                     {can.delete && (

@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $content_text
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read int|null $shared_with_count accepted memberships, when the index query counts them
  */
 #[Fillable(['title', 'folder_id', 'state', 'content_html', 'content_text'])]
 #[RouteKey('uuid')]
