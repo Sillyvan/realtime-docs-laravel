@@ -86,6 +86,7 @@
         "no-with": "error",
         "react/exhaustive-deps": "warn",
         "react/no-unescaped-entities": "off",
+        "react/react-compiler": "error",
         "react/react-in-jsx-scope": "off",
         "react/rules-of-hooks": "error",
         "require-yield": "error",
