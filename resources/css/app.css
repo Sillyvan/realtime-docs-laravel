@@ -143,3 +143,41 @@
         @apply bg-background text-foreground;
     }
 }
+
+/*
+ * Remote carets. CollaborationCaret renders these two elements per peer and
+ * sets the colour inline, so only the geometry belongs here.
+ */
+@layer components {
+    .collaboration-carets__caret {
+        position: relative;
+        margin-inline: -1px;
+        border-inline: 1px solid;
+        pointer-events: none;
+        word-break: normal;
+    }
+
+    .collaboration-carets__label {
+        position: absolute;
+        top: -1.4em;
+        left: -1px;
+        border-radius: 0.25rem;
+        border-bottom-left-radius: 0;
+        padding: 0.05rem 0.3rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1.1;
+        white-space: nowrap;
+        color: white;
+        user-select: none;
+    }
+
+    .collaboration-carets__selection {
+        border-radius: 0.15rem;
+        mix-blend-mode: multiply;
+    }
+
+    .dark .collaboration-carets__selection {
+        mix-blend-mode: screen;
+    }
+}

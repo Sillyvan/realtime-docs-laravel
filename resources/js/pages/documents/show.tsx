@@ -1,4 +1,4 @@
-import { Form, Head, setLayoutProps } from '@inertiajs/react';
+import { Form, Head, setLayoutProps, usePage } from '@inertiajs/react';
 import { Trash2 } from 'lucide-react';
 import DocumentController from '@/actions/App/Http/Controllers/DocumentController';
 import { DocumentEditor } from '@/components/documents/document-editor';
@@ -17,7 +17,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { useDocumentAutosave } from '@/hooks/use-document-autosave';
+import { useCollaborativeDocument } from '@/hooks/use-collaborative-document';
 import { index, show } from '@/routes/documents';
 import type {
     DocumentMember,
@@ -37,7 +37,12 @@ export default function DocumentShow({
     folders: Folder[];
     can: DocumentPermissions;
 }) {
-    const { status, save } = useDocumentAutosave(doc.uuid);
+    const user = usePage().props.auth.user;
+    const { ydoc, awareness, status, onChange } = useCollaborativeDocument({
+        uuid: doc.uuid,
+        state: doc.state,
+        canEdit: can.update,
+    });
 
     setLayoutProps({
         breadcrumbs: [
@@ -131,9 +136,12 @@ export default function DocumentShow({
                 </div>
 
                 <DocumentEditor
-                    content={doc.content_html}
+                    ydoc={ydoc}
+                    awareness={awareness}
+                    user={user}
                     editable={can.update}
-                    onChange={save}
+                    fallbackHtml={doc.content_html}
+                    onChange={onChange}
                 />
             </div>
         </>

@@ -27,6 +27,11 @@ export type DocumentResource = {
     uuid: string;
     title: string;
     content_html: string;
+    /**
+     * The persisted Yjs state, base64 encoded — the document's source of truth.
+     * `null` until someone has typed in it.
+     */
+    state: string | null;
     updated_at_for_humans: string | null;
     folder: FolderRef | null;
 };
@@ -64,9 +69,16 @@ export type DocumentPermissions = {
     manageMembers: boolean;
 };
 
-export type DocumentContent = {
+/** What the editor renders — derived from the CRDT, kept for search and previews. */
+export type EditorSnapshot = {
     content_html: string;
     content_text: string;
+};
+
+/** The autosave body: the CRDT plus the snapshot derived from it. */
+export type DocumentContent = EditorSnapshot & {
+    /** Base64 `Y.encodeStateAsUpdate` of the whole document. */
+    state: string;
 };
 
 export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';

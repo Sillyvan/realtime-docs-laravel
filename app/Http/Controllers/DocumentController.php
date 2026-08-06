@@ -64,6 +64,8 @@ class DocumentController extends Controller
                 'uuid' => $document->uuid,
                 'title' => $document->title,
                 'content_html' => $document->content_html ?? '',
+                // The CRDT the editor rebuilds itself from; base64 because it is binary.
+                'state' => $document->state === null ? null : base64_encode($document->state),
                 'updated_at_for_humans' => $document->updated_at?->diffForHumans(),
                 'folder' => $this->toFolderRef($document),
             ],

@@ -146,6 +146,7 @@ test('a viewer can open the document but not write to it', function () {
 
     $this->actingAs($viewer)
         ->put(route('documents.content.update', $document), [
+            'state' => base64_encode(random_bytes(32)),
             'content_html' => '<p>sneaky</p>',
             'content_text' => 'sneaky',
         ])
@@ -177,12 +178,15 @@ test('an editor can open and write to the document', function () {
 
     $this->actingAs($editor)
         ->put(route('documents.content.update', $document), [
+            'state' => base64_encode('a yjs update'),
             'content_html' => '<p>edited</p>',
             'content_text' => 'edited',
         ])
         ->assertNoContent();
 
-    expect($document->fresh()->content_text)->toBe('edited');
+    expect($document->fresh())
+        ->content_text->toBe('edited')
+        ->state->toBe('a yjs update');
 });
 
 test('a pending or declined invitation grants no access', function () {

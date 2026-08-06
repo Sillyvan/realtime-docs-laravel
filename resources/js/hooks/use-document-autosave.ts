@@ -6,21 +6,38 @@ import type { DocumentContent, SaveStatus } from '@/types';
 const AUTOSAVE_DELAY = 1500;
 
 /**
- * Persist the editor's snapshot a moment after typing stops, and whenever the
- * page is about to go away.
+ * Persist the document a moment after typing stops, whenever the page is about
+ * to go away, and on demand — the collaborative editor also flushes on
+ * reconnect so anything typed offline reaches the server.
+ *
+ * The snapshot is taken at save time rather than at change time: the Yjs state
+ * is only worth encoding once, and it has to include whatever peers sent while
+ * the save was still pending.
  */
-export function useDocumentAutosave(uuid: string): {
+export function useDocumentAutosave(
+    uuid: string,
+    snapshot: () => DocumentContent,
+): {
     status: SaveStatus;
-    save: (content: DocumentContent) => void;
+    touch: () => void;
     flush: () => void;
 } {
     const [status, setStatus] = useState<SaveStatus>('idle');
-    const pending = useRef<DocumentContent | null>(null);
+    // Cleared only once the server has the change, so a save that fails while
+    // offline is retried by the next flush instead of being forgotten.
+    const dirty = useRef(false);
+    const saving = useRef(false);
     const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const take = useRef(snapshot);
     const { transform, put } = useHttp<DocumentContent>({
+        state: '',
         content_html: '',
         content_text: '',
     });
+
+    useEffect(() => {
+        take.current = snapshot;
+    }, [snapshot]);
 
     const flush = useCallback(() => {
         if (timer.current !== null) {
@@ -28,34 +45,36 @@ export function useDocumentAutosave(uuid: string): {
             timer.current = null;
         }
 
-        const content = pending.current;
-
-        if (content === null) {
+        if (!dirty.current || saving.current) {
             return;
         }
 
-        pending.current = null;
+        saving.current = true;
         setStatus('saving');
-        transform(() => content);
+        transform(() => take.current());
 
-        put(updateContent(uuid).url, {
-            onSuccess: () => setStatus('saved'),
+        void put(updateContent(uuid).url, {
+            onSuccess: () => {
+                dirty.current = false;
+                setStatus('saved');
+            },
+            onError: () => setStatus('error'),
+            onFinish: () => {
+                saving.current = false;
+            },
         }).catch(() => setStatus('error'));
     }, [put, transform, uuid]);
 
-    const save = useCallback(
-        (content: DocumentContent) => {
-            pending.current = content;
-            setStatus('unsaved');
+    const touch = useCallback(() => {
+        dirty.current = true;
+        setStatus('unsaved');
 
-            if (timer.current !== null) {
-                clearTimeout(timer.current);
-            }
+        if (timer.current !== null) {
+            clearTimeout(timer.current);
+        }
 
-            timer.current = setTimeout(flush, AUTOSAVE_DELAY);
-        },
-        [flush],
-    );
+        timer.current = setTimeout(flush, AUTOSAVE_DELAY);
+    }, [flush]);
 
     useEffect(() => {
         const saveWhenHidden = () => {
@@ -72,5 +91,5 @@ export function useDocumentAutosave(uuid: string): {
         };
     }, [flush]);
 
-    return { status, save, flush };
+    return { status, touch, flush };
 }

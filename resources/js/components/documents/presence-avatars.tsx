@@ -7,23 +7,10 @@ import {
 } from '@/components/ui/tooltip';
 import { useDocumentPresence } from '@/hooks/use-document-presence';
 import { useInitials } from '@/hooks/use-initials';
+import { presenceColor } from '@/lib/presence-color';
 import type { PresenceUser } from '@/types';
 
 const VISIBLE = 4;
-
-/** The palette people on the document are identified by, keyed off their id. */
-const colors = [
-    'bg-rose-500',
-    'bg-amber-500',
-    'bg-emerald-500',
-    'bg-sky-500',
-    'bg-violet-500',
-    'bg-fuchsia-500',
-];
-
-function presenceColor(id: number): string {
-    return colors[id % colors.length];
-}
 
 /** Who else is in the document right now. Renders nothing when you are alone. */
 export function PresenceAvatars({ uuid }: { uuid: string }) {
@@ -67,7 +54,8 @@ function PresentPerson({ user }: { user: PresenceUser }) {
             <TooltipTrigger asChild>
                 <Avatar className="size-7 ring-2 ring-background">
                     <AvatarFallback
-                        className={`text-[10px] font-medium text-white ${presenceColor(user.id)}`}
+                        className="text-[10px] font-medium text-white"
+                        style={{ backgroundColor: presenceColor(user.id) }}
                     >
                         {getInitials(user.name)}
                     </AvatarFallback>

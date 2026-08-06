@@ -303,19 +303,58 @@ test('a viewer cannot rename a document', function () {
     expect($document->fresh()->title)->not->toBe('Nope');
 });
 
-test('autosave persists the html and text snapshot', function () {
+test('autosave persists the yjs state alongside the html and text snapshot', function () {
     $document = Document::factory()->create();
+    // A Yjs update is arbitrary binary — null bytes, invalid UTF-8, the lot.
+    $state = "\x00\x01\xff\xfe".random_bytes(64)."\x00";
 
     $this->actingAs($document->owner)
         ->put(route('documents.content.update', $document), [
+            'state' => base64_encode($state),
             'content_html' => '<p>Typed live</p>',
             'content_text' => 'Typed live',
         ])
         ->assertNoContent();
 
     expect($document->fresh())
+        ->state->toBe($state)
         ->content_html->toBe('<p>Typed live</p>')
         ->content_text->toBe('Typed live');
+});
+
+test('the state round trips back to the editor as base64', function () {
+    $state = random_bytes(96);
+    $document = Document::factory()->create(['state' => $state]);
+
+    $this->actingAs($document->owner)
+        ->get(route('documents.show', $document))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('document.state', base64_encode($state))
+        );
+});
+
+test('a document nobody has typed in yet has no state', function () {
+    $document = Document::factory()->create(['state' => null]);
+
+    $this->actingAs($document->owner)
+        ->get(route('documents.show', $document))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('document.state', null));
+});
+
+test('autosave rejects a state that is not base64', function () {
+    $document = Document::factory()->create();
+
+    $this->actingAs($document->owner)
+        ->putJson(route('documents.content.update', $document), [
+            'state' => 'not base64 !!',
+            'content_html' => '<p>Nope</p>',
+            'content_text' => 'Nope',
+        ])
+        ->assertJsonValidationErrors('state');
+
+    expect($document->fresh()->state)->toBeNull();
 });
 
 test('an editor can autosave but a viewer cannot', function () {
@@ -332,7 +371,11 @@ test('an editor can autosave but a viewer cannot', function () {
         'user_id' => $viewer->id,
     ]);
 
-    $payload = ['content_html' => '<p>Edit</p>', 'content_text' => 'Edit'];
+    $payload = [
+        'state' => base64_encode(random_bytes(32)),
+        'content_html' => '<p>Edit</p>',
+        'content_text' => 'Edit',
+    ];
 
     $this->actingAs($editor)
         ->put(route('documents.content.update', $document), $payload)
