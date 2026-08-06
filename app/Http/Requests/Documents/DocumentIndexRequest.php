@@ -56,7 +56,7 @@ class DocumentIndexRequest extends FormRequest
     /**
      * The filters to apply, with every omitted filter resolved to its default.
      *
-     * @return array{scope: string, folder: string|null, q: string|null, sort: string, direction: string}
+     * @return array{scope: string, folder: string|null, q: string|null, sort: string, direction: 'asc'|'desc'}
      */
     public function filters(): array
     {

@@ -16,12 +16,16 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
+/**
+ * @phpstan-type ListItem array{uuid: string, title: string, excerpt: string, updated_at_for_humans: string|null, owner: array{name: string}, is_owner: bool, role: string|null, shared_with_count: int, folder: array{uuid: string, name: string}|null}
+ * @phpstan-type MemberRow array{id: int|null, name: string, email: string|null, role: string, status: string, is_you: bool}
+ * @phpstan-type FolderItem array{uuid: string, name: string, documents_count: int}
+ */
 class DocumentController extends Controller
 {
     /**
@@ -34,7 +38,7 @@ class DocumentController extends Controller
 
         return Inertia::render('documents/index', [
             'documents' => fn (): LengthAwarePaginator => $this->paginateDocuments($user, $filters),
-            'folders' => fn (): Collection => $this->foldersFor($user),
+            'folders' => fn (): array => $this->foldersFor($user),
             'filters' => $filters,
         ]);
     }
@@ -70,8 +74,8 @@ class DocumentController extends Controller
                 'updated_at_for_humans' => $document->updated_at?->diffForHumans(),
                 'folder' => $this->toFolderRef($document),
             ],
-            'members' => fn (): Collection => $this->membersFor($document, $user, $canManageMembers),
-            'folders' => fn (): Collection => $canFile ? $this->foldersFor($user) : collect(),
+            'members' => fn (): array => $this->membersFor($document, $user, $canManageMembers),
+            'folders' => fn (): array => $canFile ? $this->foldersFor($user) : [],
             'can' => [
                 'update' => $user->can('update', $document),
                 'delete' => $user->can('delete', $document),
@@ -112,8 +116,8 @@ class DocumentController extends Controller
     /**
      * Run the filtered, sorted, paginated index query.
      *
-     * @param  array{scope: string, folder: string|null, q: string|null, sort: string, direction: string}  $filters
-     * @return LengthAwarePaginator<int, array<string, mixed>>
+     * @param  array{scope: string, folder: string|null, q: string|null, sort: string, direction: 'asc'|'desc'}  $filters
+     * @return LengthAwarePaginator<int, ListItem>
      */
     private function paginateDocuments(User $user, array $filters): LengthAwarePaginator
     {
@@ -150,33 +154,43 @@ class DocumentController extends Controller
      * Only someone who can manage members sees email addresses, and the invitations
      * that are still pending or were declined.
      *
-     * @return Collection<int, array{id: int|null, name: string, email: string|null, role: string, status: string, is_you: bool}>
+     * @return array<int, MemberRow>
      */
-    private function membersFor(Document $document, User $user, bool $manages): Collection
+    private function membersFor(Document $document, User $user, bool $manages): array
     {
-        $owner = $document->owner;
-
         return $document->memberships()
             ->with('user:id,name,email')
             ->unless($manages, fn (Builder $memberships) => $memberships->where('status', MembershipStatus::Accepted))
             ->oldest('id')
             ->get()
             ->map(fn (DocumentMembership $membership): array => $this->toMemberRow($membership, $user, $manages))
-            ->prepend([
-                'id' => null,
-                'name' => $owner->name,
-                'email' => $manages ? $owner->email : null,
-                'role' => DocumentRole::Editor->value,
-                'status' => MembershipStatus::Accepted->value,
-                'is_you' => $owner->id === $user->id,
-            ])
-            ->values();
+            ->prepend($this->toOwnerRow($document->owner, $user, $manages))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Shape the owner as a member row. The owner has no membership of their own,
+     * so the row is synthesised and always counts as an accepted editor.
+     *
+     * @return MemberRow
+     */
+    private function toOwnerRow(User $owner, User $user, bool $manages): array
+    {
+        return [
+            'id' => null,
+            'name' => $owner->name,
+            'email' => $manages ? $owner->email : null,
+            'role' => DocumentRole::Editor->value,
+            'status' => MembershipStatus::Accepted->value,
+            'is_you' => $owner->id === $user->id,
+        ];
     }
 
     /**
      * Shape a membership for the share dialog.
      *
-     * @return array{id: int|null, name: string, email: string|null, role: string, status: string, is_you: bool}
+     * @return MemberRow
      */
     private function toMemberRow(DocumentMembership $membership, User $user, bool $manages): array
     {
@@ -193,25 +207,36 @@ class DocumentController extends Controller
     /**
      * The user's folders, with how many documents each one holds.
      *
-     * @return Collection<int, array{uuid: string, name: string, documents_count: int}>
+     * @return array<int, FolderItem>
      */
-    private function foldersFor(User $user): Collection
+    private function foldersFor(User $user): array
     {
         return $user->folders()
             ->withCount('documents')
             ->orderBy('name')
             ->get()
-            ->map(fn (Folder $folder): array => [
-                'uuid' => $folder->uuid,
-                'name' => $folder->name,
-                'documents_count' => (int) $folder->documents_count,
-            ]);
+            ->map(fn (Folder $folder): array => $this->toFolderItem($folder))
+            ->all();
+    }
+
+    /**
+     * Shape a folder for the folder pickers.
+     *
+     * @return FolderItem
+     */
+    private function toFolderItem(Folder $folder): array
+    {
+        return [
+            'uuid' => $folder->uuid,
+            'name' => $folder->name,
+            'documents_count' => (int) $folder->documents_count,
+        ];
     }
 
     /**
      * Shape a document for the index list.
      *
-     * @return array{uuid: string, title: string, excerpt: string, updated_at_for_humans: string|null, owner: array{name: string}, is_owner: bool, role: string|null, shared_with_count: int, folder: array{uuid: string, name: string}|null}
+     * @return ListItem
      */
     private function toListItem(Document $document, User $user): array
     {

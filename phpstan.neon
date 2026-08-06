@@ -11,3 +11,13 @@ parameters:
         - routes/
 
     level: 7
+
+    ignoreErrors:
+        # PHPStan 2.2 reports the invariant TValue of a paginator/collection as
+        # mismatched whenever the array shape holds a union, even when both sides
+        # are the exact same declared type. Collections dodge it by returning a
+        # covariant array<int, Shape>; a paginator has no such escape hatch.
+        -
+            identifier: return.type
+            message: '#should return Illuminate\\Contracts\\Pagination\\LengthAwarePaginator<int, array\{uuid: string,#'
+            path: app/Http/Controllers/DocumentController.php

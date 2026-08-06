@@ -6,10 +6,12 @@ use App\Enums\MembershipStatus;
 use App\Models\DocumentMembership;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
+/**
+ * @phpstan-type InvitationRow array{id: int, role: string, invited_at_for_humans: string|null, document: array{uuid: string, title: string}, invited_by: array{name: string}|null}
+ */
 class InvitationController extends Controller
 {
     /**
@@ -18,7 +20,7 @@ class InvitationController extends Controller
     public function index(Request $request): Response
     {
         return Inertia::render('invitations/index', [
-            'invitations' => fn (): Collection => $this->pendingInvitationsFor($request),
+            'invitations' => fn (): array => $this->pendingInvitationsFor($request),
         ]);
     }
 
@@ -67,26 +69,37 @@ class InvitationController extends Controller
     /**
      * Shape the user's pending invitations for the list.
      *
-     * @return Collection<int, array{id: int, role: string, invited_at_for_humans: string|null, document: array{uuid: string, title: string}, invited_by: array{name: string}|null}>
+     * @return array<int, InvitationRow>
      */
-    private function pendingInvitationsFor(Request $request): Collection
+    private function pendingInvitationsFor(Request $request): array
     {
         return $request->user()
             ->pendingInvitations()
             ->with(['document:id,uuid,title', 'invitedBy:id,name'])
             ->latest('id')
             ->get()
-            ->map(fn (DocumentMembership $invitation): array => [
-                'id' => $invitation->id,
-                'role' => $invitation->role->value,
-                'invited_at_for_humans' => $invitation->created_at?->diffForHumans(),
-                'document' => [
-                    'uuid' => $invitation->document->uuid,
-                    'title' => $invitation->document->title,
-                ],
-                'invited_by' => $invitation->invitedBy === null
-                    ? null
-                    : ['name' => $invitation->invitedBy->name],
-            ]);
+            ->map(fn (DocumentMembership $invitation): array => $this->toInvitationRow($invitation))
+            ->all();
+    }
+
+    /**
+     * Shape a pending invitation for the list.
+     *
+     * @return InvitationRow
+     */
+    private function toInvitationRow(DocumentMembership $invitation): array
+    {
+        return [
+            'id' => $invitation->id,
+            'role' => $invitation->role->value,
+            'invited_at_for_humans' => $invitation->created_at?->diffForHumans(),
+            'document' => [
+                'uuid' => $invitation->document->uuid,
+                'title' => $invitation->document->title,
+            ],
+            'invited_by' => $invitation->invitedBy === null
+                ? null
+                : ['name' => $invitation->invitedBy->name],
+        ];
     }
 }

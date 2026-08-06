@@ -20,6 +20,7 @@ Traps:
 vite.config.ts sets `wayfinder({ formVariants: true })`, so the vite build generates `.form()` helpers. Running `php artisan wayfinder:generate` by hand WITHOUT `--with-form` silently regenerates resources/js/{actions,routes} without them and breaks every page using `Controller.action.form()` (auth pages, settings, documents). Always: `php artisan wayfinder:generate --with-form`.
 
 ## Partial reloads must re-request every prop the UI reads
+
 `router.get(..., { only: [...] })` skips props not listed, and `preserveState` keeps the old ones. Omitting a prop the controls read (e.g. `filters` on documents/index) leaves them rendering stale values: the URL and list change but active/selected states never move, and a control already showing the "current" value looks dead.
 
 Rule: `only` must list the list prop AND every prop that drives the controls' state. Only leave a prop out when nothing on the page reads it for that interaction (e.g. `folders` on a filter change).

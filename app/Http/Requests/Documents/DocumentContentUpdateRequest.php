@@ -40,10 +40,13 @@ class DocumentContentUpdateRequest extends FormRequest
     public function contentAttributes(): array
     {
         $state = $this->validated('state');
+        $decoded = $state === null ? null : base64_decode($state, true);
 
         return [
-            ...$this->safe()->only(['content_html', 'content_text']),
-            'state' => $state === null ? null : base64_decode($state, true),
+            // The rule above already rejected anything base64_decode() would refuse.
+            'state' => $decoded === false ? null : $decoded,
+            'content_html' => $this->validated('content_html'),
+            'content_text' => $this->validated('content_text'),
         ];
     }
 
