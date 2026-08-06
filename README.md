@@ -30,4 +30,3 @@ Basically RPC between laravel and typescript very cool nothing too complicated h
 ### Inertia
 
 I was already familiar with SSR based frameworks, this dosent feel too different you just end up passing data into a render function, which you get access to as a prop on the client.
-
