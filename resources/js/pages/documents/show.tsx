@@ -5,6 +5,7 @@ import { DocumentEditor } from '@/components/documents/document-editor';
 import { DocumentTitle } from '@/components/documents/document-title';
 import { EditorStatus } from '@/components/documents/editor-status';
 import { MoveToFolder } from '@/components/documents/move-to-folder';
+import { PresenceAvatars } from '@/components/documents/presence-avatars';
 import { ShareDialog } from '@/components/documents/share-dialog';
 import { Button } from '@/components/ui/button';
 import {
@@ -67,6 +68,8 @@ export default function DocumentShow({
                             className="hidden shrink-0 sm:flex"
                         />
                     )}
+
+                    <PresenceAvatars uuid={doc.uuid} />
 
                     <EditorStatus
                         status={status}

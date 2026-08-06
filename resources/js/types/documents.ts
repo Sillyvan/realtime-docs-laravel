@@ -41,6 +41,13 @@ export type DocumentMember = {
     is_you: boolean;
 };
 
+/** A member on the document's presence channel, as `DocumentChannel@join` shapes them. */
+export type PresenceUser = {
+    id: number;
+    name: string;
+    role: DocumentRole;
+};
+
 /** An invitation the signed-in user has not answered yet. */
 export type PendingInvitation = {
     id: number;
