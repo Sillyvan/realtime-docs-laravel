@@ -83,6 +83,28 @@ export type DocumentContent = EditorSnapshot & {
 
 export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';
 
+/** `App\Events\DocumentTitleUpdated`, on the document's presence channel. */
+export type DocumentTitleUpdatedEvent = {
+    uuid: string;
+    title: string;
+};
+
+/**
+ * `App\Events\DocumentAccessChanged`, on the document's presence channel.
+ * A `null` role means that person no longer has access at all.
+ */
+export type DocumentAccessChangedEvent = {
+    user_id: number;
+    role: DocumentRole | null;
+};
+
+/** `App\Events\InvitationReceived`, on the invitee's private channel. */
+export type InvitationReceivedEvent = {
+    document: { uuid: string; title: string };
+    role: DocumentRole;
+    invited_by: string | null;
+};
+
 export type DocumentScope = 'all' | 'mine' | 'shared';
 
 export type DocumentSort = 'updated_at' | 'created_at' | 'title';

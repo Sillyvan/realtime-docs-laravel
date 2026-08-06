@@ -16,3 +16,10 @@ The returned `channel` function identity is stable per channel name, so `[channe
 `use-collaborative-document.ts` schedules the destroy in a `setTimeout` held in a ref, and the effect body clears it on setup. Real unmount destroys a tick later; StrictMode's remount cancels it.
 
 Rebuilding via `setState` in the cleanup is not an option — oxlint's `react/react-compiler` rule rejects setState inside an effect.
+
+## toOthers() needs the X-Socket-Id header stamped by hand
+Inertia v3 dropped axios, so nothing attaches `X-Socket-ID` any more and `broadcast()->toOthers()` silently degrades to "broadcast to everyone" — the actor hears their own events back.
+
+`use-socket-id-header.ts` fixes it: `useSocketId()` from @laravel/echo-react plus an `http.onRequest` interceptor (its return value is the remover, so it doubles as the effect cleanup). It is mounted once in `layouts/app/app-sidebar-layout.tsx`, which is also why Echo now connects on every signed-in page, not just document pages.
+
+Related: echo-react reference-counts channels under `${visibility}-${name}`, so `useEchoPresence` and `usePresenceChannel` on the same document share one subscription and none of them leaves while another is mounted.

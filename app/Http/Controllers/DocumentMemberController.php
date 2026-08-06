@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Enums\MembershipStatus;
+use App\Events\DocumentAccessChanged;
+use App\Events\InvitationReceived;
 use App\Http\Requests\Documents\MemberInviteRequest;
 use App\Http\Requests\Documents\MemberRoleUpdateRequest;
 use App\Models\Document;
@@ -20,7 +22,7 @@ class DocumentMemberController extends Controller
     public function store(MemberInviteRequest $request, Document $document): RedirectResponse
     {
         // updateOrCreate, so a declined invitation can be sent again on the same row.
-        $document->memberships()->updateOrCreate(
+        $membership = $document->memberships()->updateOrCreate(
             ['user_id' => $request->invitee()->id],
             [
                 'role' => $request->validated('role'),
@@ -29,6 +31,12 @@ class DocumentMemberController extends Controller
                 'responded_at' => null,
             ],
         );
+
+        // Both sides of the invitation are already in hand; the event should not
+        // go looking for them again.
+        $membership->setRelation('document', $document)->setRelation('invitedBy', $request->user());
+
+        broadcast(new InvitationReceived($membership))->toOthers();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation sent.')]);
 
@@ -41,6 +49,10 @@ class DocumentMemberController extends Controller
     public function update(MemberRoleUpdateRequest $request, Document $document, DocumentMembership $membership): RedirectResponse
     {
         $membership->update($request->validated());
+
+        if ($membership->wasChanged('role')) {
+            broadcast(DocumentAccessChanged::granted($document, $membership))->toOthers();
+        }
 
         return back();
     }
@@ -57,6 +69,8 @@ class DocumentMemberController extends Controller
         }
 
         $membership->delete();
+
+        broadcast(DocumentAccessChanged::revoked($document, $membership))->toOthers();
 
         if (! $isLeaving) {
             return back();

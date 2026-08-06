@@ -18,6 +18,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { useCollaborativeDocument } from '@/hooks/use-collaborative-document';
+import { useDocumentEvents } from '@/hooks/use-document-events';
 import { index, show } from '@/routes/documents';
 import type {
     DocumentMember,
@@ -43,6 +44,8 @@ export default function DocumentShow({
         state: doc.state,
         canEdit: can.update,
     });
+
+    useDocumentEvents(doc.uuid);
 
     setLayoutProps({
         breadcrumbs: [

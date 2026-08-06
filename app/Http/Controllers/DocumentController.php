@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\DocumentRole;
 use App\Enums\MembershipStatus;
+use App\Events\DocumentTitleUpdated;
 use App\Http\Requests\Documents\DocumentIndexRequest;
 use App\Http\Requests\Documents\DocumentUpdateRequest;
 use App\Models\Document;
@@ -86,6 +87,10 @@ class DocumentController extends Controller
     public function update(DocumentUpdateRequest $request, Document $document): RedirectResponse
     {
         $document->update($request->documentAttributes());
+
+        if ($document->wasChanged('title')) {
+            broadcast(new DocumentTitleUpdated($document))->toOthers();
+        }
 
         return back();
     }
