@@ -12,6 +12,7 @@ declare module '@inertiajs/core' {
         sharedPageProps: {
             name: string;
             auth: Auth;
+            pendingInvitationsCount: number;
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

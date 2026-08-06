@@ -41,6 +41,15 @@ export type DocumentMember = {
     is_you: boolean;
 };
 
+/** An invitation the signed-in user has not answered yet. */
+export type PendingInvitation = {
+    id: number;
+    role: DocumentRole;
+    invited_at_for_humans: string | null;
+    document: { uuid: string; title: string };
+    invited_by: { name: string } | null;
+};
+
 export type DocumentPermissions = {
     update: boolean;
     delete: boolean;

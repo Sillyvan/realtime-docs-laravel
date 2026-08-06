@@ -4,6 +4,7 @@ use App\Http\Controllers\DocumentContentController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DocumentMemberController;
 use App\Http\Controllers\FolderController;
+use App\Http\Controllers\InvitationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -19,4 +20,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->only(['store', 'update', 'destroy'])
         ->parameters(['members' => 'membership'])
         ->scoped();
+
+    Route::resource('invitations', InvitationController::class)
+        ->only(['index', 'update', 'destroy']);
 });

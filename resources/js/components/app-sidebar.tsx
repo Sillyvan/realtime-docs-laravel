@@ -1,5 +1,5 @@
-import { Link } from '@inertiajs/react';
-import { BookOpen, FileText, FolderGit2, LayoutGrid } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import { BookOpen, FileText, FolderGit2, LayoutGrid, Mail } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as documentsIndex } from '@/routes/documents';
+import { index as invitationsIndex } from '@/routes/invitations';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -44,6 +45,19 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    // Shared from HandleInertiaRequests, so the badge tracks invitations from every page.
+    const { pendingInvitationsCount } = usePage().props;
+
+    const navItems: NavItem[] = [
+        ...mainNavItems,
+        {
+            title: 'Invitations',
+            href: invitationsIndex(),
+            icon: Mail,
+            badge: pendingInvitationsCount,
+        },
+    ];
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -59,7 +73,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={navItems} />
             </SidebarContent>
 
             <SidebarFooter>
